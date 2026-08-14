@@ -1,6 +1,10 @@
 name: "Terraform Destroy CI/CD"
 
 on:
+  push:
+    branches:
+      - main
+
   workflow_dispatch:
     inputs:
       BRANCH:
@@ -52,7 +56,7 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -input=false
 
-      # 6. Apply configuration (Runs ONLY on merge/push to main branch)
+      # 6. Destroy configuration (Runs ONLY on merge/push to main branch)
       - name: Terraform Destroy
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform destroy -auto-approve -input=false
