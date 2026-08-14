@@ -1,0 +1,58 @@
+name: "Terraform Destroy CI/CD"
+
+on:
+  workflow_dispatch:
+    inputs:
+      BRANCH:
+        description: "Choose Git branch to deploy"
+        required: true
+        default: "master"
+
+permissions:
+  id-token: write # Required for requesting the OIDC JWT token
+  contents: read  # Required to check out the repository code
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  terraform:
+    name: "Terraform Plan & Destroy"
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Install Terraform CLI
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+          
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # 3. Initialize Terraform (checks backend config)
+      - name: Terraform Init
+        run: terraform init
+
+      # 4. Check for syntax formatting errors
+      - name: Terraform Format Check
+        run: terraform fmt -check
+
+      # 5. Generate deployment plan (runs on PR and Push)
+      - name: Terraform Plan
+        run: terraform plan -input=false
+
+      # 6. Destroy configuration (Runs ONLY on merge/push to main branch)
+      - name: Terraform Destroy
+        # if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform destroy -auto-approve -input=false
